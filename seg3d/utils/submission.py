@@ -66,7 +66,7 @@ def write_submission_file(segmentation_frame_list, out_file):
     submission.affiliation = 'WPCLab'
     submission.authors.append('Darren Wang')
     submission.description = "Proposed by WPCLab"
-    submission.method_link = 'NA'
+    submission.method_link = 'https://github.com/WPCLab/OpenSeg3D'
     submission.sensor_type = 1
     submission.number_past_frames_exclude_current = 0
     submission.number_future_frames_exclude_current = 0
