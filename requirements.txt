@@ -1,0 +1,10 @@
+numba
+tqdm
+easydict
+spconv-cu113
+torch
+torchvision
+torchaudio
+torch-scatter
+waymo-open-dataset-tf-2-6-0
+open3d
