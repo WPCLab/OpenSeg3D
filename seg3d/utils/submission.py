@@ -61,7 +61,7 @@ def construct_seg_frame(pred_labels, points_ri, filename):
 def write_submission_file(segmentation_frame_list, out_file):
     # create the submission file, which can be uploaded to the eval server.
     submission = segmentation_submission_pb2.SemanticSegmentationSubmission()
-    submission.account_name = 'wangyang9113@gmail.com'
+    submission.account_name = 'kenvinxunwang@gmail.com'
     submission.unique_method_name = 'WNet'
     submission.affiliation = 'WPCLab'
     submission.authors.append('Darren Wang')

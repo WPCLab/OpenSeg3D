@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 import torch
 import torch.optim
+import torch.nn.functional as F
 
 from seg3d.datasets.waymo_dataset import WaymoDataset
 from seg3d.datasets import build_dataloader
@@ -42,7 +43,8 @@ def semseg_for_one_frame(model, data_dict, transforms):
         load_data_to_gpu(aug_data)
         with torch.no_grad():
             result = model(aug_data)
-        point_out_list.append(result['point_out'])
+        point_out = F.softmax(result['point_out'], dim=1)
+        point_out_list.append(point_out)
     point_outs = torch.stack(point_out_list, dim=0)
     point_out = torch.mean(point_outs, dim=0)
     pred_labels = torch.argmax(point_out, dim=1).cpu()
