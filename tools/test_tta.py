@@ -54,7 +54,8 @@ def semseg_for_one_frame(model, data_dict, transforms):
 
 def inference(args, data_loader, model, logger):
     logger.info('Inference start!')
-    transforms = MultiScaleFlipAug(scales=[0.9, 0.95, 1.0, 1.05, 1.1], angles=[-1.57079, 0, 1.57079, 3.14159],
+    transforms = MultiScaleFlipAug(scales=[0.95, 1.0, 1.05],
+                                   angles=[-0.78539816, 0, 0.78539816],
                                    flip_x=True, flip_y=True)
     model.eval()
     segmentation_frame_list = segmentation_metrics_pb2.SegmentationFrameList()

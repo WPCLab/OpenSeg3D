@@ -37,6 +37,7 @@ __C.MODEL = edict()
 __C.MODEL.SEGMENTOR = 'segformer'
 __C.MODEL.LOSSES = {'ohem_ce': 1.0, 'lovasz': 1.0}
 __C.MODEL.OHEM_KEEP_RATIO = 0.3
+__C.MODEL.OHEM_KEEP_THRESH = 0.7
 __C.MODEL.AUX_LOSS_WEIGHT = 0.4
 __C.MODEL.BATCHING_INFO = [
     {

@@ -29,7 +29,7 @@ def build_criterion(cfg, dataset):
         if loss_name == 'ce':
             criterion = nn.CrossEntropyLoss(ignore_index=dataset.ignore_index)
         elif loss_name == 'ohem_ce':
-            criterion = OHEMCrossEntropyLoss(keep_ratio=cfg.MODEL.OHEM_KEEP_RATIO,
+            criterion = OHEMCrossEntropyLoss(keep_thresh=cfg.MODEL.OHEM_KEEP_THRESH,
                                              ignore_index=dataset.ignore_index)
         elif loss_name == 'lovasz':
             criterion = LovaszLoss(ignore_index=dataset.ignore_index)

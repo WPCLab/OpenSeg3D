@@ -1,16 +1,18 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 class OHEMCrossEntropyLoss(nn.Module):
     def __init__(self,
                  keep_ratio=None,
+                 keep_thresh=None,
                  ignore_index=255,
                  class_weight=None,
                  loss_name='loss_ohem_cross_entropy'):
         super(OHEMCrossEntropyLoss, self).__init__()
 
         self.keep_ratio = keep_ratio
+        self.keep_thresh = keep_thresh
         self.ignore_index = ignore_index
         self.class_weight = class_weight
         self.cross_entropy = nn.CrossEntropyLoss(reduction='none',
@@ -21,11 +23,15 @@ class OHEMCrossEntropyLoss(nn.Module):
     def forward(self,
                 inputs,
                 targets):
-        losses = self.cross_entropy(inputs, targets)
+        mask = targets != self.ignore_index
+        losses = self.cross_entropy(inputs, targets)[mask]
         if self.keep_ratio:
             _, sort_indices = losses.sort(descending=True)
             kept_count = int(losses.shape[0] * self.keep_ratio)
             losses = losses[sort_indices[:kept_count]]
+        elif self.keep_thresh:
+            probs = F.softmax(inputs, dim=1)
+            losses = losses[probs < self.keep_thresh]
         loss = losses.mean()
         return loss
 
