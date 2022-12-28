@@ -32,7 +32,7 @@ class OHEMCrossEntropyLoss(nn.Module):
         elif self.keep_thresh:
             probs = F.softmax(inputs, dim=1)[mask]
             targets = targets[mask]
-            probs = probs.gather(1, targets.unsqueeze(1))
+            probs = probs.gather(1, targets.unsqueeze(1)).squeeze()
             losses = losses[probs < self.keep_thresh]
         loss = losses.mean()
         return loss
