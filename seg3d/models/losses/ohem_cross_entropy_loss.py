@@ -30,7 +30,9 @@ class OHEMCrossEntropyLoss(nn.Module):
             kept_count = int(losses.shape[0] * self.keep_ratio)
             losses = losses[sort_indices[:kept_count]]
         elif self.keep_thresh:
-            probs = F.softmax(inputs, dim=1)
+            probs = F.softmax(inputs, dim=1)[mask]
+            targets = targets[mask]
+            probs = probs.gather(1, targets.unsqueeze(1))
             losses = losses[probs < self.keep_thresh]
         loss = losses.mean()
         return loss
