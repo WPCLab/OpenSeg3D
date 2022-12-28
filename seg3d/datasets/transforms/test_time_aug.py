@@ -20,7 +20,7 @@ class MultiScaleFlipAug(object):
                 for flip_x in self.flip_x:
                     for flip_y in self.flip_y:
                         new_data = dict()
-                        for key in ['points', 'point_image_features', 'points_ri']:
+                        for key in ['points', 'point_image_features']:
                             new_data[key] = data[key].copy()
                         points = new_data['points'][:, 1:]
                         points[:, :3] *= scale
