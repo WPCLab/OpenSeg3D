@@ -42,6 +42,7 @@ def evaluate(args, augmentor, data_loader, class_names, model, logger):
         if args.tta:
             point_out_list = []
             aug_data_list = augmentor(data_dict)
+            load_data_to_gpu(data_dict)
             for i in range(len(aug_data_list)):
                 aug_data = aug_data_list[i]
                 load_data_to_gpu(aug_data)
