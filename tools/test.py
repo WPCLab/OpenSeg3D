@@ -9,12 +9,12 @@ import torch.nn.functional as F
 
 from seg3d.datasets.waymo_dataset import WaymoDataset
 from seg3d.datasets import build_dataloader
+from seg3d.datasets.transforms.test_time_aug import MultiScaleFlipAug
 from seg3d.models.builder import build_segmentor
 from seg3d.utils.config import cfg_from_file, cfg
 from seg3d.utils.logging import get_logger
 from seg3d.utils.submission import construct_seg_frame, write_submission_file
 from seg3d.utils.data_utils import load_data_to_gpu
-from seg3d.datasets.transforms.test_time_aug import MultiScaleFlipAug
 
 from waymo_open_dataset.protos import segmentation_metrics_pb2
 
