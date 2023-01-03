@@ -1,3 +1,4 @@
+import os
 import pickle
 import numpy as np
 
@@ -13,8 +14,9 @@ class InstanceAugmentation(object):
 
         self.random_rotate = random_rotate
 
-        with open(instance_path, 'rb') as f:
-            self.instances = pickle.load(f)
+        if os.path.exists(instance_path):
+            with open(instance_path, 'rb') as f:
+                self.instances = pickle.load(f)
 
     def __call__(self, points, labels, point_image_features=None):
         instance_choice = np.random.choice(self.label_ids, self.add_count, replace=True, p=self.class_weight)
@@ -50,13 +52,15 @@ class InstanceAugmentation(object):
                 points = np.concatenate((points, add_points), axis=0)
                 add_labels = np.ones((add_points.shape[0],), dtype=labels.dtype) * label_id
                 labels = np.concatenate((labels, add_labels), axis=0)
-                if point_image_features is None:
-                    return points, labels
-                else:
+                if point_image_features is not None:
                     add_point_image_features = np.zeros((add_points.shape[0], point_image_features.shape[1]),
                                                         dtype=point_image_features.dtype)
                     point_image_features = np.concatenate((point_image_features, add_point_image_features), axis=0)
-                    return points, point_image_features, labels
+
+        if point_image_features is None:
+            return points, labels
+        else:
+            return points, point_image_features, labels
 
 
     def check_occlusion(self, points_xyz, labels, center, min_dist=2):
