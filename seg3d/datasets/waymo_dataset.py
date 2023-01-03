@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 
 from seg3d.core import VoxelGenerator
 from seg3d.datasets.transforms import transforms
+from seg3d.datasets.transforms.instance_augmentation import InstanceAugmentation
 from seg3d.datasets.transforms.polarmix import PolarMix
 from seg3d.utils.pointops_utils import cart2polar
 
@@ -35,7 +36,10 @@ class WaymoDataset(Dataset):
         self.point_cloud_range = self.voxel_generator.point_cloud_range
 
         self.polar_mix = PolarMix(instance_classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-                                  rot_angle_range=[np.random.random() * np.pi * 2 / 3, (np.random.random() + 1) * np.pi * 2 / 3])
+                                  rot_angle_range=[np.random.random() * np.pi * 2 / 3,
+                                                   (np.random.random() + 1) * np.pi * 2 / 3])
+
+        self.instance_aug = InstanceAugmentation(instance_path=os.path.join(self.root, split, 'instances/lidar_instances.pkl'))
 
         self.transforms = transforms.Compose([transforms.RandomGlobalRotation(cfg.DATASET.AUG_ROT_RANGE),
                                               transforms.RandomGlobalScaling(cfg.DATASET.AUG_SCALE_RANGE),
@@ -323,9 +327,13 @@ class WaymoDataset(Dataset):
                 input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
                     self.polar_mix(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'],
                                    points2, point_images_features2, labels2)
+                input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
+                    self.instance_aug(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'])
             else:
                 input_dict['points'], input_dict['point_labels'] = \
                     self.polar_mix(input_dict['points'], None, input_dict['point_labels'], points2, None, labels2)
+                input_dict['points'], input_dict['point_labels'] = \
+                    self.instance_aug(input_dict['points'], input_dict['point_labels'])
 
         if self.test_mode:
             if self.cfg.DATASET.USE_MULTI_SWEEPS:
