@@ -3,21 +3,18 @@ import numpy as np
 
 
 class InstanceAugmentation(object):
-    def __init__(self, instance_path, random_rotate=True, add_count=5, road_id=17):
-        with open(instance_path, 'rb') as f:
-            self.instances = pickle.load(f)
-
-        self.label_ids = []
-        for label_id in self.instances.keys():
-            self.label_ids.append(label_id)
-
-        self.class_weight = [len(self.instances[label_id]) for label_id in self.label_ids]
-        self.class_weight = np.asarray(self.class_weight) / np.sum(self.class_weight)
+    def __init__(self, instance_path, label_ids=[3, 4, 10], class_weight=[0.25, 0.25, 0.5],
+                 add_count=5, road_id=17, random_rotate=True):
+        self.label_ids = label_ids
+        self.class_weight = np.asarray(class_weight)
 
         self.add_count = add_count
         self.road_id = road_id
 
         self.random_rotate = random_rotate
+
+        with open(instance_path, 'rb') as f:
+            self.instances = pickle.load(f)
 
     def __call__(self, points, labels, point_image_features=None):
         instance_choice = np.random.choice(self.label_ids, self.add_count, replace=True, p=self.class_weight)
