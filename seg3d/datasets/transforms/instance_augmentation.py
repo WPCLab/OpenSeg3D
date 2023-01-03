@@ -19,7 +19,7 @@ class InstanceAugmentation(object):
 
         self.random_rotate = random_rotate
 
-    def __call__(self, points, point_image_features, labels):
+    def __call__(self, points, labels, point_image_features=None):
         instance_choice = np.random.choice(self.label_ids, self.add_num, replace=True, p=self.class_weight)
         uni_inst, uni_inst_count = np.unique(instance_choice, return_counts=True)
         for label_id, count in zip(uni_inst, uni_inst_count):
