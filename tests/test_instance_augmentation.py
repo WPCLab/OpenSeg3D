@@ -20,7 +20,7 @@ if __name__ == '__main__':
         lidar_file = label_file.replace('label', 'lidar')
         lidar = np.load(lidar_file)[:, :6]
         label = np.load(label_file)[:, 1]
-        points, labels = instance_aug(lidar, label)
+        points, labels = instance_aug(lidar, None, label)
 
         pcd = geometry.PointCloud()
         points = points.copy()

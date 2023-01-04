@@ -328,12 +328,12 @@ class WaymoDataset(Dataset):
                     self.polar_mix(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'],
                                    points2, point_images_features2, labels2)
                 input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
-                    self.instance_aug(input_dict['points'], input_dict['point_labels'], input_dict['point_image_features'])
+                    self.instance_aug(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'])
             else:
                 input_dict['points'], input_dict['point_labels'] = \
                     self.polar_mix(input_dict['points'], None, input_dict['point_labels'], points2, None, labels2)
                 input_dict['points'], input_dict['point_labels'] = \
-                    self.instance_aug(input_dict['points'], input_dict['point_labels'])
+                    self.instance_aug(input_dict['points'], None, input_dict['point_labels'])
 
         if self.test_mode:
             if self.cfg.DATASET.USE_MULTI_SWEEPS:
