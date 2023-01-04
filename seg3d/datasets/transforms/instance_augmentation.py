@@ -16,7 +16,6 @@ class InstanceAugmentation(object):
                 self.instances = pickle.load(f)
 
     def __call__(self, points, point_image_features, labels):
-        object_points = points[labels != self.road_label_id][:, :3]
         label_choice = np.random.choice(self.label_ids, self.add_count, replace=True)
         uni_label, uni_count = np.unique(label_choice, return_counts=True)
         for label_id, count in zip(uni_label, uni_count):
@@ -24,6 +23,8 @@ class InstanceAugmentation(object):
             instance_choice = np.random.choice(len(self.instances[label_id]), count)
             # add to current scan
             for idx in instance_choice:
+                object_points = points[labels != self.road_label_id][:, :3]
+
                 instance_points = self.instances[label_id][idx].copy()
                 instance_xyz = instance_points[:, :3]
                 center = np.mean(instance_xyz, axis=0)
