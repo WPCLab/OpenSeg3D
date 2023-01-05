@@ -7,9 +7,19 @@ from tqdm import tqdm
 
 from sklearn.cluster import DBSCAN
 
-TARGET_LABEL_ID = 3 # other-vehicle:3, motorcyclist:4, cone: 10
-TARGET_MIN_POINT_NUM = 500 # other-vehicle:500, motorcyclist:100, cone: 50
+TARGET_LABEL_ID = 3 # other-vehicle:3, motorcyclist:4, cone:10
+TARGET_MIN_POINT_NUM = 120 # other-vehicle:120, motorcyclist:30, cone:30
 
+
+def load_points(lidar_file):
+    points = np.load(lidar_file)[:, :6]
+    return points
+
+def load_label(label_file):
+    labels = np.load(label_file)[:, 1]
+    labels -= 1
+    labels[labels == -1] = 255
+    return labels
 
 if __name__ == '__main__':
     data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2/training'
@@ -17,14 +27,14 @@ if __name__ == '__main__':
     lidar_instances = []
     for label_file in tqdm(label_files):
         lidar_file = label_file.replace('label', 'lidar')
-        lidar = np.load(lidar_file)[:, :6]
-        label = np.load(label_file)[:, 1]
-        target_lidar = lidar[label == TARGET_LABEL_ID]
+        points = load_points(lidar_file)
+        labels = load_label(label_file)
+        target_lidar = points[labels == TARGET_LABEL_ID]
 
         if target_lidar.shape[0] < TARGET_MIN_POINT_NUM:
             continue
 
-        clustering = DBSCAN(eps=0.2, min_samples=TARGET_MIN_POINT_NUM).fit(target_lidar[:, :3])
+        clustering = DBSCAN(eps=0.25, min_samples=TARGET_MIN_POINT_NUM).fit(target_lidar[:, :2])
         cluster_ids = clustering.labels_
 
         # Number of clusters in labels, ignoring noise if present.
