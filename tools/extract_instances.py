@@ -7,19 +7,21 @@ from tqdm import tqdm
 
 from sklearn.cluster import DBSCAN
 
-TARGET_LABEL_ID = 3 # other-vehicle:3, motorcyclist:4, cone:10
-TARGET_MIN_POINT_NUM = 120 # other-vehicle:120, motorcyclist:30, cone:30
+TARGET_LABEL_ID = 3  # other-vehicle:3, motorcyclist:4, cone:10
+TARGET_MIN_POINT_NUM = 120  # other-vehicle:120, motorcyclist:30, cone:30
 
 
 def load_points(lidar_file):
     points = np.load(lidar_file)[:, :6]
     return points
 
+
 def load_label(label_file):
     labels = np.load(label_file)[:, 1]
     labels -= 1
     labels[labels == -1] = 255
     return labels
+
 
 if __name__ == '__main__':
     data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2/training'

@@ -14,11 +14,13 @@ def load_points(lidar_file):
     points = np.load(lidar_file)[:, :6]
     return points
 
+
 def load_label(label_file):
     labels = np.load(label_file)[:, 1]
     labels -= 1
     labels[labels == -1] = 255
     return labels
+
 
 if __name__ == '__main__':
     data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2'
@@ -41,5 +43,5 @@ if __name__ == '__main__':
         pcd.colors = o3d.utility.Vector3dVector(points_colors)
 
         filename = os.path.splitext(os.path.basename(lidar_file))[0]
-        output_file = os.path.join(data_dir, 'visualization',  filename + '.pcd')
+        output_file = os.path.join(data_dir, 'visualization', filename + '.pcd')
         o3d.io.write_point_cloud(output_file, pcd)
