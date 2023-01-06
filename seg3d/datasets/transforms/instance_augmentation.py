@@ -28,6 +28,9 @@ class InstanceAugmentation(object):
                 instance_points = self.instances[label_id][idx].copy()
                 instance_xyz = instance_points[:, :3]
                 center = np.mean(instance_xyz, axis=0)
+                instance_feat = instance_points[:, 3:]
+                instance_feat[:, 0] = 0
+                instance_feat[:, 1] = np.tanh(instance_feat[:, 1])
 
                 # need to check occlusion
                 fail_flag = True
@@ -47,7 +50,7 @@ class InstanceAugmentation(object):
                     fail_flag = not self.check_occlusion(object_points, center)
                 if fail_flag: continue
 
-                add_points = np.concatenate((instance_xyz, instance_points[:, 3:]), axis=1)
+                add_points = np.concatenate((instance_xyz, instance_feat), axis=1)
                 points = np.concatenate((points, add_points), axis=0)
                 add_labels = np.ones((add_points.shape[0],), dtype=labels.dtype) * label_id
                 labels = np.concatenate((labels, add_labels), axis=0)
