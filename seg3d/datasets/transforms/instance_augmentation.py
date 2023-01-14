@@ -7,9 +7,9 @@ class InstanceAugmentation(object):
     def __init__(self, instance_path, instance_label_ids=[3, 4, 10], ground_label_ids=[17, 18, 19, 20, 21],
                  add_count=5, random_rotate=True, local_transformation=True, random_flip=True):
         self.instance_label_ids = instance_label_ids
+        self.ground_label_ids = ground_label_ids
 
         self.ground_label_map = {}
-        self.ground_label_ids = ground_label_ids
         for i, ground_label_id in enumerate(self.ground_label_ids):
             self.ground_label_map[ground_label_id] = i
 
