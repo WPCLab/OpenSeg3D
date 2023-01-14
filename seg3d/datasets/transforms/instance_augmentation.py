@@ -4,12 +4,12 @@ import numpy as np
 
 
 class InstanceAugmentation(object):
-    def __init__(self, instance_path, label_ids=[3, 4, 10], road_label_id=17, add_count=5,
-                 random_rotate=True, local_transformation=True, random_flip=True):
-        self.label_ids = label_ids
-        self.road_label_id = road_label_id
-        self.add_count = add_count
+    def __init__(self, instance_path, instance_label_ids=[3, 4, 10], ground_label_ids=[17, 18, 19, 20, 21],
+                 add_count=5, random_rotate=True, local_transformation=True, random_flip=True):
+        self.instance_label_ids = instance_label_ids
+        self.ground_label_ids = ground_label_ids
 
+        self.add_count = add_count
         self.random_rotate = random_rotate
         self.local_transformation = local_transformation
         self.random_flip = random_flip
@@ -19,46 +19,31 @@ class InstanceAugmentation(object):
                 self.instances = pickle.load(f)
 
     def __call__(self, points, point_image_features, labels):
-        label_choice = np.random.choice(self.label_ids, self.add_count, replace=True)
+        label_choice = np.random.choice(self.instance_label_ids, self.add_count, replace=True)
         uni_label, uni_count = np.unique(label_choice, return_counts=True)
         for label_id, count in zip(uni_label, uni_count):
             # find random instance
             instance_choice = np.random.choice(len(self.instances[label_id]), count)
             # add to current scan
             for idx in instance_choice:
-                object_points = points[labels != self.road_label_id][:, :3]
+                object_points = []
+                for i in range(labels.shape[0]):
+                    label = labels[i]
+                    if label not in self.ground_label_ids:
+                        object_point = points[i, :3]
+                        object_points.append(object_point)
+                object_points = np.stack(object_points)
 
                 instance_points = self.instances[label_id][idx].copy()
                 instance_xyz = instance_points[:, :3]
-                center = np.mean(instance_xyz, axis=0)
                 instance_feat = instance_points[:, 3:]
                 instance_feat[:, 0] = 0
                 instance_feat[:, 1] = np.tanh(instance_feat[:, 1])
 
-                # need to check occlusion
-                fail_flag = True
-                if self.random_rotate:
-                    # random rotate
-                    random_angle = np.random.random(20) * np.pi * 2
-                    for r in random_angle:
-                        center_r = self.rotate_origin(center[np.newaxis, ...], r)
-                        # check if occluded
-                        if self.check_occlusion(object_points, center_r[0]):
-                            fail_flag = False
-                            break
-                    # rotate to empty space
-                    if fail_flag: continue
-                    instance_xyz = self.rotate_origin(instance_xyz, r)
-                else:
-                    fail_flag = not self.check_occlusion(object_points, center)
-
-                if fail_flag: continue
-
-                center = np.mean(instance_xyz, axis=0)
-
                 # random translation and rotation
+                center = np.mean(instance_xyz, axis=0)
                 if self.local_transformation:
-                    instance_xyz = self.local_tranform(instance_xyz, center)
+                    instance_xyz = self.local_transform(instance_xyz, center)
 
                 # random flip instance based on it center
                 if self.random_flip:
@@ -70,6 +55,27 @@ class InstanceAugmentation(object):
                     if flip_type == 3:
                         instance_xyz[:, :2] = self.instance_flip(instance_xyz[:, :2], [long_axis, short_axis],
                                                                  [center[0], center[1]], flip_type)
+
+                # need to check occlusion
+                fail_flag = True
+                center = np.mean(instance_xyz, axis=0)
+                radius = self.get_instance_radius(instance_xyz, center)
+                if self.random_rotate:
+                    # random rotate
+                    random_angle = np.random.random(20) * np.pi * 2
+                    for r in random_angle:
+                        center_r = self.rotate_origin(center[np.newaxis, ...], r)
+                        # check if occluded
+                        if self.check_occlusion(object_points, center_r[0], min_dist=radius):
+                            fail_flag = False
+                            break
+                    # rotate to empty space
+                    if fail_flag: continue
+                    instance_xyz = self.rotate_origin(instance_xyz, r)
+                else:
+                    fail_flag = not self.check_occlusion(object_points, center, min_dist=radius)
+
+                if fail_flag: continue
 
                 add_points = np.concatenate((instance_xyz, instance_feat), axis=1)
                 points = np.concatenate((points, add_points), axis=0)
@@ -124,7 +130,7 @@ class InstanceAugmentation(object):
         new_xyz[:, 1] = -x * np.sin(radians) + y * np.cos(radians)
         return new_xyz
 
-    def local_tranform(self, xyz, center):
+    def local_transform(self, xyz, center):
         """translate and rotate point cloud according to its center"""
         # random xyz
         loc_noise = np.random.normal(scale=0.25, size=(1, 3))
@@ -136,3 +142,12 @@ class InstanceAugmentation(object):
         xyz = xyz + loc_noise
 
         return xyz + center
+
+    def get_instance_radius(self, points_xyz, center):
+        """compute radius of instance points"""
+        if points_xyz.ndim == 1:
+            dist = np.linalg.norm(points_xyz[np.newaxis, :] - center, axis=1)
+        else:
+            dist = np.linalg.norm(points_xyz - center, axis=1)
+        radius = np.max(dist)
+        return radius
