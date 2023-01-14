@@ -31,12 +31,17 @@ class InstanceAugmentation(object):
             # add to current scan
             for idx in instance_choice:
                 object_points = []
+                ground_points = []
                 for i in range(labels.shape[0]):
                     label = labels[i]
                     if label not in self.instance_label_map:
                         object_point = points[i, :3]
                         object_points.append(object_point)
+                    else:
+                        ground_point = points[i, :3]
+                        ground_points.append(ground_point)
                 object_points = np.stack(object_points)
+                ground_points = np.stack(ground_points)
 
                 instance_points = self.instances[label_id][idx].copy()
                 instance_xyz = instance_points[:, :3]
@@ -70,14 +75,14 @@ class InstanceAugmentation(object):
                     for r in random_angle:
                         center_r = self.rotate_origin(center[np.newaxis, ...], r)
                         # check if occluded
-                        if self.check_occlusion(object_points, center_r[0], min_dist=radius):
+                        if self.check(object_points, ground_points, center_r[0], min_dist=radius):
                             fail_flag = False
                             break
                     # rotate to empty space
                     if fail_flag: continue
                     instance_xyz = self.rotate_origin(instance_xyz, r)
                 else:
-                    fail_flag = not self.check_occlusion(object_points, center, min_dist=radius)
+                    fail_flag = not self.check(object_points, ground_points, center, min_dist=radius)
 
                 if fail_flag: continue
 
@@ -117,13 +122,23 @@ class InstanceAugmentation(object):
 
         return points
 
-    def check_occlusion(self, points_xyz, center, min_dist=2):
+    def check(self, points_xyz_object, points_xyz_ground, center, min_dist=2):
         """check if close to a point"""
-        if points_xyz.ndim == 1:
-            dist = np.linalg.norm(points_xyz[np.newaxis, :] - center, axis=1)
+        # check no occlusion
+        if points_xyz_object.ndim == 1:
+            dist = np.linalg.norm(points_xyz_object[np.newaxis, :] - center, axis=1)
         else:
-            dist = np.linalg.norm(points_xyz - center, axis=1)
-        return np.all(dist > min_dist)
+            dist = np.linalg.norm(points_xyz_object - center, axis=1)
+        no_occlusion = np.all(dist > min_dist)
+
+        # check on ground
+        if points_xyz_ground.ndim == 1:
+            dist = np.linalg.norm(points_xyz_ground[np.newaxis, :] - center, axis=1)
+        else:
+            dist = np.linalg.norm(points_xyz_ground - center, axis=1)
+        on_ground = np.any(dist < 1.2 * min_dist)
+
+        return no_occlusion and on_ground
 
     def rotate_origin(self, points_xyz, radians):
         """rotate a point around the origin"""
