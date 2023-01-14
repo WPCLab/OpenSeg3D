@@ -35,6 +35,8 @@ class InstanceAugmentation(object):
                 for i in range(labels.shape[0]):
                     point = points[i, :3]
                     label = labels[i]
+                    if label == 255:
+                        continue
                     if label in self.ground_label_map:
                         ground_points.append(point)
                     else:
