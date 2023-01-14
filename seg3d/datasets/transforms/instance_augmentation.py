@@ -7,11 +7,11 @@ class InstanceAugmentation(object):
     def __init__(self, instance_path, instance_label_ids=[3, 4, 10], ground_label_ids=[17, 18, 19, 20, 21],
                  add_count=5, random_rotate=True, local_transformation=True, random_flip=True):
         self.instance_label_ids = instance_label_ids
-        self.ground_label_ids = ground_label_ids
 
-        self.instance_label_map = {}
-        for i, instance_label_id in enumerate(self.instance_label_ids):
-            self.instance_label_map[instance_label_id] = i
+        self.ground_label_map = {}
+        self.ground_label_ids = ground_label_ids
+        for i, ground_label_id in enumerate(self.ground_label_ids):
+            self.ground_label_map[ground_label_id] = i
 
         self.add_count = add_count
         self.random_rotate = random_rotate
@@ -33,13 +33,12 @@ class InstanceAugmentation(object):
                 object_points = []
                 ground_points = []
                 for i in range(labels.shape[0]):
+                    point = points[i, :3]
                     label = labels[i]
-                    if label not in self.instance_label_map:
-                        object_point = points[i, :3]
-                        object_points.append(object_point)
+                    if label in self.ground_label_map:
+                        ground_points.append(point)
                     else:
-                        ground_point = points[i, :3]
-                        ground_points.append(ground_point)
+                        object_points.append(point)
                 object_points = np.stack(object_points)
                 ground_points = np.stack(ground_points)
 
