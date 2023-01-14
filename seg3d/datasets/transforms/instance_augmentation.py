@@ -9,6 +9,10 @@ class InstanceAugmentation(object):
         self.instance_label_ids = instance_label_ids
         self.ground_label_ids = ground_label_ids
 
+        self.instance_label_map = {}
+        for i, instance_label_id in enumerate(self.instance_label_ids):
+            self.instance_label_map[instance_label_id] = i
+
         self.add_count = add_count
         self.random_rotate = random_rotate
         self.local_transformation = local_transformation
@@ -29,7 +33,7 @@ class InstanceAugmentation(object):
                 object_points = []
                 for i in range(labels.shape[0]):
                     label = labels[i]
-                    if label not in self.ground_label_ids:
+                    if label not in self.instance_label_map:
                         object_point = points[i, :3]
                         object_points.append(object_point)
                 object_points = np.stack(object_points)
