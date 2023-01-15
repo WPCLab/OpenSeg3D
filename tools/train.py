@@ -216,7 +216,7 @@ def main():
     logger.info(cfg)
 
     # load data
-    train_dataset = WaymoDataset(cfg, os.path.join(args.data_dir, 'training'), model='training')
+    train_dataset = WaymoDataset(cfg, os.path.join(args.data_dir, 'training'), mode='training')
     train_set, train_loader, train_sampler = build_dataloader(
         dataset=train_dataset,
         batch_size=args.batch_size,
