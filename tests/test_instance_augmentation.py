@@ -25,7 +25,8 @@ def load_label(label_file):
 if __name__ == '__main__':
     data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2'
     split = 'training'
-    instance_aug = InstanceAugmentation(instance_path=os.path.join(data_dir, split, 'instances/lidar_instances.pkl'))
+    instance_aug = InstanceAugmentation(
+        instance_path=os.path.join(data_dir, split, 'instances/lidar_instances_with_height.pkl'))
 
     label_files = glob.glob(os.path.join(data_dir, split, 'label/*.npy'))
     for label_file in tqdm(label_files):

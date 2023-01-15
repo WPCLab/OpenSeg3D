@@ -39,14 +39,16 @@ class WaymoDataset(Dataset):
                                   rot_angle_range=[np.random.random() * np.pi * 2 / 3,
                                                    (np.random.random() + 1) * np.pi * 2 / 3])
 
-        self.instance_aug = InstanceAugmentation(instance_path=os.path.join(self.root, split, 'instances/lidar_instances.pkl'))
+        self.instance_aug = InstanceAugmentation(
+            instance_path=os.path.join(self.root, split, 'instances/lidar_instances_with_height.pkl'))
 
         self.transforms = transforms.Compose([transforms.RandomGlobalRotation(cfg.DATASET.AUG_ROT_RANGE),
                                               transforms.RandomGlobalScaling(cfg.DATASET.AUG_SCALE_RANGE),
                                               transforms.RandomGlobalTranslation(cfg.DATASET.AUG_TRANSLATE_STD),
                                               transforms.RandomFlip(),
                                               transforms.PointShuffle(),
-                                              transforms.PointSample(cfg.DATASET.AUG_SAMPLE_RATIO, cfg.DATASET.AUG_SAMPLE_RANGE)])
+                                              transforms.PointSample(cfg.DATASET.AUG_SAMPLE_RATIO,
+                                                                     cfg.DATASET.AUG_SAMPLE_RANGE)])
 
     @property
     def dim_point(self):
@@ -311,7 +313,8 @@ class WaymoDataset(Dataset):
 
         if self.cfg.DATASET.USE_IMAGE_FEATURE:
             if self.cfg.DATASET.USE_MULTI_SWEEPS:
-                input_dict['point_image_features'] = self.load_image_features(input_dict['cur_point_indices'].shape[0], filename)
+                input_dict['point_image_features'] = self.load_image_features(input_dict['cur_point_indices'].shape[0],
+                                                                              filename)
             else:
                 input_dict['point_image_features'] = self.load_image_features(input_dict['points'].shape[0], filename)
 
@@ -328,7 +331,8 @@ class WaymoDataset(Dataset):
                     self.polar_mix(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'],
                                    points2, point_images_features2, labels2)
                 input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
-                    self.instance_aug(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'])
+                    self.instance_aug(input_dict['points'], input_dict['point_image_features'],
+                                      input_dict['point_labels'])
             else:
                 input_dict['points'], input_dict['point_labels'] = \
                     self.polar_mix(input_dict['points'], None, input_dict['point_labels'], points2, None, labels2)
@@ -391,13 +395,15 @@ class WaymoDataset(Dataset):
     def __len__(self):
         return len(self.filenames)
 
+
 if __name__ == '__main__':
     from seg3d.utils.config import cfg
     from seg3d.utils.visualize import draw_points, draw_voxels
 
-    cfg.DATASET.PALETTE = [[0, 0, 142], [0, 0, 70], [0, 60, 100], [61, 133, 198], [180, 0, 0], [255, 0, 0], [220, 20, 60], [246, 178, 107],
-                           [250, 170, 30], [153, 153, 153], [230, 145, 56], [119, 11, 32], [0, 0, 230], [70, 70, 70], [107, 142, 35],
-                           [190, 153, 153], [196, 196, 196], [128, 64, 128], [234, 209, 220], [217, 210, 233], [81, 0, 81], [244, 35, 232]]
+    cfg.DATASET.PALETTE = [[0, 0, 142], [0, 0, 70], [0, 60, 100], [61, 133, 198], [180, 0, 0], [255, 0, 0],
+                           [220, 20, 60], [246, 178, 107], [250, 170, 30], [153, 153, 153], [230, 145, 56],
+                           [119, 11, 32], [0, 0, 230], [70, 70, 70], [107, 142, 35], [190, 153, 153], [196, 196, 196],
+                           [128, 64, 128], [234, 209, 220], [217, 210, 233], [81, 0, 81], [244, 35, 232]]
 
     data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2'
     dataset = WaymoDataset(cfg, data_dir, 'validation')
@@ -406,4 +412,5 @@ if __name__ == '__main__':
 
         if cfg.DATASET.VISUALIZE:
             draw_points(dataset.palette, sample, os.path.join(data_dir, 'visualization/points'))
-            draw_voxels(dataset.palette, dataset.voxel_size, dataset.point_cloud_range, sample, os.path.join(data_dir, 'visualization/voxels'))
+            draw_voxels(dataset.palette, dataset.voxel_size, dataset.point_cloud_range, sample,
+                        os.path.join(data_dir, 'visualization/voxels'))

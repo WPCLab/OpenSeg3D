@@ -71,14 +71,15 @@ class InstanceAugmentation(object):
                 # need to check occlusion
                 fail_flag = True
                 center = np.mean(instance_xyz, axis=0)
-                radius = self.get_instance_radius(instance_xyz, center)
+                radius = self.radius_instance(instance_xyz, center)
                 if self.random_rotate:
                     # random rotate
                     random_angle = np.random.random(20) * np.pi * 2
                     for r in random_angle:
                         center_r = self.rotate_origin(center[np.newaxis, ...], r)
                         # check if occluded and on ground
-                        if self.check_valid(object_points, ground_points, center_r[0], min_dist=radius):
+                        if self.check(object_points, ground_points, instance_xyz, center_r[0], instance_height,
+                                      min_dist=radius):
                             fail_flag = False
                             break
                     # rotate to empty space
@@ -86,13 +87,10 @@ class InstanceAugmentation(object):
                     instance_xyz = self.rotate_origin(instance_xyz, r)
                 else:
                     # check if occluded and on ground
-                    fail_flag = not self.check_valid(object_points, ground_points, center_r[0], min_dist=radius)
+                    fail_flag = not self.check(object_points, ground_points, instance_xyz, center_r[0], instance_height,
+                                               min_dist=radius)
 
                 if fail_flag: continue
-
-                # adjust with saved height on ground
-                instance_center = np.mean(instance_xyz, axis=0)
-                instance_xyz = self.adjust_z_with_height(ground_points, instance_xyz, instance_center, instance_height)
 
                 add_points = np.concatenate((instance_xyz, instance_feat), axis=1)
                 points = np.concatenate((points, add_points), axis=0)
@@ -130,7 +128,7 @@ class InstanceAugmentation(object):
 
         return points
 
-    def check_valid(self, points_xyz_object, points_xyz_ground, center, min_dist=2):
+    def check(self, points_xyz_object, points_xyz_ground, points_xyz, center, height, min_dist=2):
         """check if close to a point and on ground"""
         # check no occlusion
         if points_xyz_object.ndim == 1:
@@ -146,7 +144,15 @@ class InstanceAugmentation(object):
             dist = np.linalg.norm(points_xyz_ground - center, axis=1)
         on_ground = np.any(dist < 1.2 * min_dist)
 
-        return no_occlusion and on_ground
+        # if on ground, then adjust z with height
+        if no_occlusion and on_ground:
+            min_idx = np.argmin(dist)
+            ground_z = points_xyz_ground[min_idx][2]
+            est_z = ground_z + height
+            points_xyz[:, 2] += (est_z - center[2])
+            return True
+        else:
+            return False
 
     def rotate_origin(self, points_xyz, radians):
         """rotate a point around the origin"""
@@ -170,7 +176,7 @@ class InstanceAugmentation(object):
 
         return xyz + center
 
-    def get_instance_radius(self, points_xyz, center):
+    def radius_instance(self, points_xyz, center):
         """compute radius of instance points"""
         if points_xyz.ndim == 1:
             dist = np.linalg.norm(points_xyz[np.newaxis, :] - center, axis=1)
@@ -178,11 +184,3 @@ class InstanceAugmentation(object):
             dist = np.linalg.norm(points_xyz - center, axis=1)
         radius = np.max(dist)
         return radius
-
-    def adjust_z_with_height(self, ground_xyz, points_xyz, center, height):
-        dist = np.linalg.norm(ground_xyz - center, axis=1)
-        min_idx = np.argmin(dist)
-        ground_z = ground_xyz[min_idx][2]
-        est_z = ground_z + height
-        points_xyz[:, 2] += (est_z - center[2])
-        return points_xyz
