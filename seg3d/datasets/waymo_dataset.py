@@ -126,30 +126,14 @@ class WaymoDataset(Dataset):
             file_idx_to_name[(file_idx, frame_idx)] = filename
         return file_idx_to_name
 
-    def get_lidar_path(self, filename):
-        lidar_file = os.path.join(self.data_root, 'lidar', filename + '.npy')
-        return lidar_file
-
-    def get_image_feature_path(self, filename):
-        image_feature_file = os.path.join(self.data_root, 'image_feature', filename + '.npy')
-        return image_feature_file
-
-    def get_pose_path(self, filename):
-        pose_file = os.path.join(self.data_root, 'pose', filename + '.txt')
-        return pose_file
-
-    def get_label_path(self, filename):
-        label_file = os.path.join(self.data_root, 'label', filename + '.npy')
-        return label_file
-
     def load_pose(self, filename):
-        pose_file = self.get_pose_path(filename)
+        pose_file = os.path.join(self.data_root, 'pose', filename + '.txt')
         sensor2local_matrix = np.loadtxt(pose_file)
         return sensor2local_matrix
 
     def load_image_features(self, num_points, filename):
         # load image feature
-        image_feature_file = self.get_image_feature_path(filename)
+        image_feature_file = os.path.join(self.data_root, 'image_feature', filename + '.npy')
         image_feature = np.load(image_feature_file, allow_pickle=True).item()
 
         # assemble point image features
@@ -159,7 +143,7 @@ class WaymoDataset(Dataset):
         return point_image_features
 
     def load_points(self, filename):
-        lidar_file = self.get_lidar_path(filename)
+        lidar_file = os.path.join(self.data_root, 'lidar', filename + '.npy')
         # (x, y, z, range, intensity, elongation, 6-dim camera project, range col, row and index): [N, 15]
         lidar_points = np.load(lidar_file)
 
@@ -218,7 +202,7 @@ class WaymoDataset(Dataset):
         return points, cur_point_indices
 
     def load_label(self, filename):
-        label_file = self.get_label_path(filename)
+        label_file = os.path.join(self.data_root, 'label', filename + '.npy')
         semantic_labels = np.load(label_file)[:, 1]  # (N, 1)
 
         # convert unlabeled to ignored label (0 to 255)
