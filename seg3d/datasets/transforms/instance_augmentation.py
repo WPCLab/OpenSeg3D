@@ -45,7 +45,7 @@ class InstanceAugmentation(object):
                 ground_points = np.stack(ground_points)
 
                 instance = self.instances[label_id][idx]
-                instance_points = instance['cluster_points']
+                instance_points = instance['cluster_points'].copy()
                 instance_height = instance['cluster_height']
                 instance_xyz = instance_points[:, :3]
                 instance_feat = instance_points[:, 3:]
