@@ -10,7 +10,7 @@ from seg3d.utils.distributed import get_dist_info
 from seg3d.datasets.samplers.distributed_sampler import DistributedSampler
 
 
-def build_dataloader(dataset, batch_size, dist, num_workers=4, seed=None, training=True):
+def build_dataloader(dataset, batch_size, dist=False, num_workers=4, collate_fn=None, seed=None, training=True):
     if dist:
         rank, world_size = get_dist_info()
 
@@ -29,7 +29,7 @@ def build_dataloader(dataset, batch_size, dist, num_workers=4, seed=None, traini
 
     dataloader = DataLoader(
         dataset, batch_size=batch_size, num_workers=num_workers, pin_memory=True,
-        shuffle=(sampler is None) and training, collate_fn=dataset.collate_batch,
+        shuffle=(sampler is None) and training, collate_fn=collate_fn,
         worker_init_fn=init_fn, drop_last=False, sampler=sampler, timeout=0
     )
 

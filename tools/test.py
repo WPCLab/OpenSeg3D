@@ -33,6 +33,7 @@ def parse_args():
 
     return args
 
+
 def semseg_for_one_frame(args, model, data_dict, augmentor):
     points_ri = data_dict['points_ri']
     frame_id = data_dict['filename'][0]
@@ -59,6 +60,7 @@ def semseg_for_one_frame(args, model, data_dict, augmentor):
     seg_frame = construct_seg_frame(pred_labels, points_ri, frame_id)
     return seg_frame
 
+
 def inference(args, augmentor, data_loader, model, logger):
     logger.info('Inference start!')
     model.eval()
@@ -71,6 +73,7 @@ def inference(args, augmentor, data_loader, model, logger):
     write_submission_file(segmentation_frame_list, submission_file)
 
     logger.info('Inference finished!')
+
 
 def main():
     # parse args
@@ -90,7 +93,7 @@ def main():
     logger.info(cfg)
 
     # load data
-    test_dataset = WaymoDataset(cfg, args.data_dir, 'testing', test_mode=True)
+    test_dataset = WaymoDataset(cfg, os.path.join(args.data_dir, 'testing'), mode='testing')
     logger.info('Loaded %d testing samples' % len(test_dataset))
 
     test_set, test_loader, sampler = build_dataloader(
@@ -98,9 +101,10 @@ def main():
         batch_size=args.batch_size,
         dist=False,
         num_workers=args.num_workers,
+        collate_fn=test_dataset.collate_batch,
         training=False)
 
-    # data augmentor
+    # data augmentation
     augmentor = MultiScaleFlipAug(dataset=test_dataset,
                                   scales=[0.95, 1.0, 1.05],
                                   angles=[-0.78539816, 0, 0.78539816],

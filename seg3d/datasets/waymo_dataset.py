@@ -13,17 +13,16 @@ from seg3d.utils.pointops_utils import cart2polar
 
 
 class WaymoDataset(Dataset):
-    def __init__(self, cfg, root, split='training', test_mode=False):
-        assert split in ['training', 'validation', 'testing']
+    def __init__(self, cfg, data_root, mode='training'):
+        assert mode in ['training', 'validation', 'testing']
         self.cfg = cfg
-        self.root = root
-        self.split = split
-        self.test_mode = test_mode
+        self.data_root = data_root
+        self.mode = mode
 
         all_filenames = self.get_filenames('lidar')
         self.file_idx_to_name = self.build_file_idx_to_name(all_filenames)
 
-        if self.test_mode:
+        if self.mode == 'testing':
             self.filenames = self.get_testing_filenames(all_filenames)
         else:
             self.filenames = self.get_filenames('label')
@@ -40,7 +39,7 @@ class WaymoDataset(Dataset):
                                                    (np.random.random() + 1) * np.pi * 2 / 3])
 
         self.instance_aug = InstanceAugmentation(
-            instance_path=os.path.join(self.root, split, 'instances/lidar_instances_with_height.pkl'))
+            instance_path=os.path.join(self.data_root, 'instances/lidar_instances_with_height.pkl'))
 
         self.transforms = transforms.Compose([transforms.RandomGlobalRotation(cfg.DATASET.AUG_ROT_RANGE),
                                               transforms.RandomGlobalScaling(cfg.DATASET.AUG_SCALE_RANGE),
@@ -101,11 +100,11 @@ class WaymoDataset(Dataset):
 
     def get_filenames(self, dir_name):
         return [os.path.splitext(os.path.basename(path))[0] for path in
-                glob.glob(os.path.join(self.root, self.split, dir_name, '*.npy'))]
+                glob.glob(os.path.join(self.data_root, dir_name, '*.npy'))]
 
     def get_testing_filenames(self, filenames):
         testing_frames = dict()
-        with open(os.path.join(self.root, self.split, '3d_semseg_test_set_frames.txt'), 'r') as fp:
+        with open(os.path.join(self.data_root, '3d_semseg_test_set_frames.txt'), 'r') as fp:
             lines = fp.read().splitlines()
             for line in lines:
                 splits = line.split(',')
@@ -128,19 +127,19 @@ class WaymoDataset(Dataset):
         return file_idx_to_name
 
     def get_lidar_path(self, filename):
-        lidar_file = os.path.join(self.root, self.split, 'lidar', filename + '.npy')
+        lidar_file = os.path.join(self.data_root, 'lidar', filename + '.npy')
         return lidar_file
 
     def get_image_feature_path(self, filename):
-        image_feature_file = os.path.join(self.root, self.split, 'image_feature', filename + '.npy')
+        image_feature_file = os.path.join(self.data_root, 'image_feature', filename + '.npy')
         return image_feature_file
 
     def get_pose_path(self, filename):
-        pose_file = os.path.join(self.root, self.split, 'pose', filename + '.txt')
+        pose_file = os.path.join(self.data_root, 'pose', filename + '.txt')
         return pose_file
 
     def get_label_path(self, filename):
-        label_file = os.path.join(self.root, self.split, 'label', filename + '.npy')
+        label_file = os.path.join(self.data_root, 'label', filename + '.npy')
         return label_file
 
     def load_pose(self, filename):
@@ -195,7 +194,7 @@ class WaymoDataset(Dataset):
         else:
             if len(history_sweep_filenames) <= history_num_sweeps:
                 choices = np.arange(len(history_sweep_filenames))
-            elif self.split == 'training':
+            elif self.mode == 'training':
                 choices = np.random.choice(
                     len(history_sweep_filenames), history_num_sweeps, replace=False)
             else:
@@ -276,7 +275,7 @@ class WaymoDataset(Dataset):
                 point_voxel_ids: optional, (N)
                 voxel_labels: optional, (num_voxels)
         """
-        if self.split == 'training' and self.cfg.DATASET.AUG_DATA:
+        if self.mode == 'training' and self.cfg.DATASET.AUG_DATA:
             data_dict = self.transforms(data_dict)
 
         if self.cfg.DATASET.USE_MULTI_SWEEPS:
@@ -318,10 +317,10 @@ class WaymoDataset(Dataset):
             else:
                 input_dict['point_image_features'] = self.load_image_features(input_dict['points'].shape[0], filename)
 
-        if not self.test_mode:
+        if self.mode != 'testing':
             input_dict['point_labels'] = self.load_label(filename)
 
-        if self.split == 'training' and self.cfg.DATASET.AUG_DATA and not self.cfg.DATASET.USE_MULTI_SWEEPS:
+        if self.mode == 'training' and self.cfg.DATASET.AUG_DATA and not self.cfg.DATASET.USE_MULTI_SWEEPS:
             filename2 = self.filenames[np.random.randint(len(self.filenames))]
             points2 = self.load_points(filename2)[:, :self.dim_point]
             labels2 = self.load_label(filename2)
@@ -339,7 +338,7 @@ class WaymoDataset(Dataset):
                 input_dict['points'], input_dict['point_labels'] = \
                     self.instance_aug(input_dict['points'], None, input_dict['point_labels'])
 
-        if self.test_mode:
+        if self.mode == 'testing':
             if self.cfg.DATASET.USE_MULTI_SWEEPS:
                 input_dict['points_ri'] = points[input_dict['cur_point_indices']][:, -3:].astype(np.int32)
             else:
@@ -347,7 +346,7 @@ class WaymoDataset(Dataset):
 
         data_dict = self.prepare_data(data_dict=input_dict)
 
-        if not self.test_mode:
+        if self.mode != 'testing':
             self.prepare_voxel_labels(data_dict)
 
         return data_dict
@@ -405,8 +404,8 @@ if __name__ == '__main__':
                            [119, 11, 32], [0, 0, 230], [70, 70, 70], [107, 142, 35], [190, 153, 153], [196, 196, 196],
                            [128, 64, 128], [234, 209, 220], [217, 210, 233], [81, 0, 81], [244, 35, 232]]
 
-    data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2'
-    dataset = WaymoDataset(cfg, data_dir, 'validation')
+    data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2/validation'
+    dataset = WaymoDataset(cfg, data_dir, mode='validation')
     for step, sample in enumerate(dataset):
         print(step, sample['points'].shape, sample['point_labels'].shape)
 

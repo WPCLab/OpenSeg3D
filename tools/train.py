@@ -33,7 +33,8 @@ def parse_args():
     parser.add_argument('--cudnn_benchmark', action='store_true', default=False, help='whether to use cudnn')
     parser.add_argument('--deterministic', action='store_true', default=False, help='whether to use deterministic')
     parser.add_argument('--sync_bn', action='store_true', default=False, help='whether to use sync bn')
-    parser.add_argument('--no_validate', action='store_true', help='whether not to evaluate the checkpoint during training')
+    parser.add_argument('--no_validate', action='store_true',
+                        help='whether not to evaluate the checkpoint during training')
     parser.add_argument('--eval_epoch_interval', default=2, type=int)
     parser.add_argument('--log_iter_interval', default=10, type=int)
     parser.add_argument('--auto_resume', action='store_true', help='resume from the latest checkpoint automatically')
@@ -41,11 +42,13 @@ def parse_args():
 
     return args
 
+
 def model_state_to_cpu(model_state):
     model_state_cpu = type(model_state)()  # ordered dict
     for key, val in model_state.items():
         model_state_cpu[key] = val.cpu()
     return model_state_cpu
+
 
 def save_checkpoint(model, optimizer, lr_scheduler, save_dir, epoch, logger):
     logger.info('Save checkpoint at epoch %d' % epoch)
@@ -63,6 +66,7 @@ def save_checkpoint(model, optimizer, lr_scheduler, save_dir, epoch, logger):
 
     torch.save(checkpoint, os.path.join(save_dir, 'epoch_%s.pth' % str(epoch)))
     torch.save(checkpoint, os.path.join(save_dir, 'latest.pth'))
+
 
 def compute_loss(pred_result, data_dict, criterion):
     loss = 0
@@ -105,6 +109,7 @@ def compute_loss(pred_result, data_dict, criterion):
 
     return loss
 
+
 def evaluate(args, data_loader, model, criterion, class_names, epoch, logger):
     iou_metric = IOUMetric(class_names)
     model.eval()
@@ -126,6 +131,7 @@ def evaluate(args, data_loader, model, criterion, class_names, epoch, logger):
 
     metric_result = iou_metric.get_metric()
     logger.info('Metrics on validation dataset: %s' % str(metric_result))
+
 
 def train_epoch(args, data_loader, model, criterion, optimizer, lr_scheduler, epoch, logger):
     model.train()
@@ -151,6 +157,7 @@ def train_epoch(args, data_loader, model, criterion, optimizer, lr_scheduler, ep
                 'Train - Epoch [%d/%d] Iter [%d/%d] lr: %f, loss: %f' % (epoch, args.epochs, step, len(data_loader),
                                                                          cur_lr, loss.cpu().item()))
 
+
 def train_segmentor(args, start_epoch, data_loaders, train_sampler, class_names, model,
                     criterion, optimizer, lr_scheduler, rank, logger):
     for epoch in range(start_epoch, args.epochs):
@@ -170,6 +177,7 @@ def train_segmentor(args, start_epoch, data_loaders, train_sampler, class_names,
         # evaluate on validation set
         if not args.no_validate and cur_epoch % args.eval_epoch_interval == 0:
             evaluate(args, data_loaders['val'], model, criterion, class_names, cur_epoch, logger)
+
 
 def main():
     # parse args
@@ -208,24 +216,26 @@ def main():
     logger.info(cfg)
 
     # load data
-    train_dataset = WaymoDataset(cfg, args.data_dir, 'training')
+    train_dataset = WaymoDataset(cfg, os.path.join(args.data_dir, 'training'), model='training')
     train_set, train_loader, train_sampler = build_dataloader(
         dataset=train_dataset,
         batch_size=args.batch_size,
         dist=distributed,
         num_workers=args.num_workers,
+        collate_fn=train_dataset.collate_batch,
         seed=seed,
         training=True)
     data_loaders = {'train': train_loader}
     logger.info('Loaded %d train samples' % len(train_dataset))
 
     if not args.no_validate:
-        val_dataset = WaymoDataset(cfg, args.data_dir, 'validation')
+        val_dataset = WaymoDataset(cfg, os.path.join(args.data_dir, 'validation'), mode='validation')
         val_set, val_loader, sampler = build_dataloader(
             dataset=val_dataset,
             batch_size=args.batch_size,
             dist=distributed,
             num_workers=args.num_workers,
+            collate_fn=val_dataset.collate_batch,
             seed=seed,
             training=False)
         data_loaders['val'] = val_loader
