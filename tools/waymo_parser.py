@@ -14,6 +14,7 @@ from waymo_open_dataset import dataset_pb2 as open_dataset
 TOP_LIDAR_ROW_NUM = 64
 TOP_LIDAR_COL_NUM = 2650
 
+
 class WaymoParser(object):
     def __init__(self,
                  tfrecord_list_file,
@@ -325,6 +326,7 @@ class WaymoParser(object):
             raise ValueError(mat.shape)
         return ret
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a 3d segmentor')
     parser.add_argument(
@@ -352,6 +354,7 @@ def parse_args():
 
     args = parser.parse_args()
     return args
+
 
 if __name__ == '__main__':
     args = parse_args()

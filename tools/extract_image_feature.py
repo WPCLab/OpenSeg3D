@@ -32,7 +32,7 @@ def get_image_list(data_dir, split, pathnames_file):
     test_set_frames = None
     if split == 'testing':
         test_set_frames = dict()
-        with open(os.path.join(data_dir, 'testing/3d_semseg_test_set_frames.txt'), 'r') as fp:
+        with open(os.path.join(data_dir, split, '3d_semseg_test_set_frames.txt'), 'r') as fp:
             lines = fp.read().splitlines()
             for line in lines:
                 infos = line.split(',')
