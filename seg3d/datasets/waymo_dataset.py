@@ -19,13 +19,13 @@ class WaymoDataset(Dataset):
         self.data_root = data_root
         self.mode = mode
 
-        all_filenames = self.get_filenames('lidar')
+        all_filenames = self.get_dir_filenames('lidar')
         self.file_idx_to_name = self.build_file_idx_to_name(all_filenames)
 
         if self.mode == 'testing':
             self.filenames = self.get_testing_filenames(all_filenames)
         else:
-            self.filenames = self.get_filenames('label')
+            self.filenames = self.get_dir_filenames('label')
 
         self.voxel_generator = VoxelGenerator(voxel_size=cfg.DATASET.VOXEL_SIZE,
                                               point_cloud_range=cfg.DATASET.POINT_CLOUD_RANGE)
@@ -98,7 +98,7 @@ class WaymoDataset(Dataset):
         frame_idx = int(splits[2])
         return file_idx, frame_idx, timestamp
 
-    def get_filenames(self, dir_name):
+    def get_dir_filenames(self, dir_name):
         return [os.path.splitext(os.path.basename(path))[0] for path in
                 glob.glob(os.path.join(self.data_root, dir_name, '*.npy'))]
 
