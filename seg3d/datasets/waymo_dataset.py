@@ -311,16 +311,16 @@ class WaymoDataset(Dataset):
             if self.cfg.DATASET.USE_IMAGE_FEATURE:
                 point_images_features2 = self.load_image_features(points2.shape[0], filename2)
                 input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
-                    self.polar_mix(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'],
-                                   points2, point_images_features2, labels2)
-                input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
                     self.instance_aug(input_dict['points'], input_dict['point_image_features'],
                                       input_dict['point_labels'])
+                input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
+                    self.polar_mix(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'],
+                                   points2, point_images_features2, labels2)
             else:
                 input_dict['points'], input_dict['point_labels'] = \
-                    self.polar_mix(input_dict['points'], None, input_dict['point_labels'], points2, None, labels2)
-                input_dict['points'], input_dict['point_labels'] = \
                     self.instance_aug(input_dict['points'], None, input_dict['point_labels'])
+                input_dict['points'], input_dict['point_labels'] = \
+                    self.polar_mix(input_dict['points'], None, input_dict['point_labels'], points2, None, labels2)
 
         if self.mode == 'testing':
             if self.cfg.DATASET.USE_MULTI_SWEEPS:
