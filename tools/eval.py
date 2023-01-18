@@ -14,10 +14,7 @@ from seg3d.datasets.transforms.test_time_aug import MultiScaleFlipAug
 from seg3d.models.builder import build_segmentor
 from seg3d.utils.config import cfg_from_file, cfg
 from seg3d.utils.logging import get_logger
-from seg3d.utils.submission import construct_seg_frame, write_submission_file
 from seg3d.utils.data_utils import load_data_to_gpu
-
-from waymo_open_dataset.protos import segmentation_metrics_pb2
 
 
 def parse_args():
@@ -33,6 +30,7 @@ def parse_args():
     args = parser.parse_args()
 
     return args
+
 
 def evaluate(args, augmentor, data_loader, class_names, model, logger):
     logger.info('Evaluation start!')
@@ -65,6 +63,7 @@ def evaluate(args, augmentor, data_loader, class_names, model, logger):
     logger.info('Metrics on validation dataset: %s' % str(metric_result))
     logger.info('Evaluation finished!')
 
+
 def main():
     # parse args
     args = parse_args()
@@ -83,7 +82,7 @@ def main():
     logger.info(cfg)
 
     # load data
-    val_dataset = WaymoDataset(cfg, args.data_dir, 'validation')
+    val_dataset = WaymoDataset(cfg, os.path.join(args.data_dir, 'validation'), mode='validation')
     logger.info('Loaded %d validation samples' % len(val_dataset))
 
     val_set, val_loader, sampler = build_dataloader(
@@ -91,9 +90,10 @@ def main():
         batch_size=args.batch_size,
         dist=False,
         num_workers=args.num_workers,
+        collate_fn=val_dataset.collate_batch,
         training=False)
 
-    # data augmentor
+    # data augmentation
     augmentor = MultiScaleFlipAug(dataset=val_dataset,
                                   scales=[0.95, 1.0, 1.05],
                                   angles=[-0.78539816, 0, 0.78539816],

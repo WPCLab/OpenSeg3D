@@ -13,20 +13,19 @@ from seg3d.utils.pointops_utils import cart2polar
 
 
 class WaymoDataset(Dataset):
-    def __init__(self, cfg, root, split='training', test_mode=False):
-        assert split in ['training', 'validation', 'testing']
+    def __init__(self, cfg, data_root, mode='training'):
+        assert mode in ['training', 'validation', 'testing']
         self.cfg = cfg
-        self.root = root
-        self.split = split
-        self.test_mode = test_mode
+        self.data_root = data_root
+        self.mode = mode
 
-        all_filenames = self.get_filenames('lidar')
+        all_filenames = self.get_dir_filenames('lidar')
         self.file_idx_to_name = self.build_file_idx_to_name(all_filenames)
 
-        if self.test_mode:
+        if self.mode == 'testing':
             self.filenames = self.get_testing_filenames(all_filenames)
         else:
-            self.filenames = self.get_filenames('label')
+            self.filenames = self.get_dir_filenames('label')
 
         self.voxel_generator = VoxelGenerator(voxel_size=cfg.DATASET.VOXEL_SIZE,
                                               point_cloud_range=cfg.DATASET.POINT_CLOUD_RANGE)
@@ -39,14 +38,16 @@ class WaymoDataset(Dataset):
                                   rot_angle_range=[np.random.random() * np.pi * 2 / 3,
                                                    (np.random.random() + 1) * np.pi * 2 / 3])
 
-        self.instance_aug = InstanceAugmentation(instance_path=os.path.join(self.root, split, 'instances/lidar_instances.pkl'))
+        self.instance_aug = InstanceAugmentation(
+            instance_path=os.path.join(self.data_root, 'instances/lidar_instances_with_height.pkl'))
 
         self.transforms = transforms.Compose([transforms.RandomGlobalRotation(cfg.DATASET.AUG_ROT_RANGE),
                                               transforms.RandomGlobalScaling(cfg.DATASET.AUG_SCALE_RANGE),
                                               transforms.RandomGlobalTranslation(cfg.DATASET.AUG_TRANSLATE_STD),
                                               transforms.RandomFlip(),
                                               transforms.PointShuffle(),
-                                              transforms.PointSample(cfg.DATASET.AUG_SAMPLE_RATIO, cfg.DATASET.AUG_SAMPLE_RANGE)])
+                                              transforms.PointSample(cfg.DATASET.AUG_SAMPLE_RATIO,
+                                                                     cfg.DATASET.AUG_SAMPLE_RANGE)])
 
     @property
     def dim_point(self):
@@ -97,13 +98,13 @@ class WaymoDataset(Dataset):
         frame_idx = int(splits[2])
         return file_idx, frame_idx, timestamp
 
-    def get_filenames(self, dir_name):
+    def get_dir_filenames(self, dir_name):
         return [os.path.splitext(os.path.basename(path))[0] for path in
-                glob.glob(os.path.join(self.root, self.split, dir_name, '*.npy'))]
+                glob.glob(os.path.join(self.data_root, dir_name, '*.npy'))]
 
     def get_testing_filenames(self, filenames):
         testing_frames = dict()
-        with open(os.path.join(self.root, self.split, '3d_semseg_test_set_frames.txt'), 'r') as fp:
+        with open(os.path.join(self.data_root, '3d_semseg_test_set_frames.txt'), 'r') as fp:
             lines = fp.read().splitlines()
             for line in lines:
                 splits = line.split(',')
@@ -125,30 +126,14 @@ class WaymoDataset(Dataset):
             file_idx_to_name[(file_idx, frame_idx)] = filename
         return file_idx_to_name
 
-    def get_lidar_path(self, filename):
-        lidar_file = os.path.join(self.root, self.split, 'lidar', filename + '.npy')
-        return lidar_file
-
-    def get_image_feature_path(self, filename):
-        image_feature_file = os.path.join(self.root, self.split, 'image_feature', filename + '.npy')
-        return image_feature_file
-
-    def get_pose_path(self, filename):
-        pose_file = os.path.join(self.root, self.split, 'pose', filename + '.txt')
-        return pose_file
-
-    def get_label_path(self, filename):
-        label_file = os.path.join(self.root, self.split, 'label', filename + '.npy')
-        return label_file
-
     def load_pose(self, filename):
-        pose_file = self.get_pose_path(filename)
+        pose_file = os.path.join(self.data_root, 'pose', filename + '.txt')
         sensor2local_matrix = np.loadtxt(pose_file)
         return sensor2local_matrix
 
     def load_image_features(self, num_points, filename):
         # load image feature
-        image_feature_file = self.get_image_feature_path(filename)
+        image_feature_file = os.path.join(self.data_root, 'image_feature', filename + '.npy')
         image_feature = np.load(image_feature_file, allow_pickle=True).item()
 
         # assemble point image features
@@ -158,7 +143,7 @@ class WaymoDataset(Dataset):
         return point_image_features
 
     def load_points(self, filename):
-        lidar_file = self.get_lidar_path(filename)
+        lidar_file = os.path.join(self.data_root, 'lidar', filename + '.npy')
         # (x, y, z, range, intensity, elongation, 6-dim camera project, range col, row and index): [N, 15]
         lidar_points = np.load(lidar_file)
 
@@ -193,7 +178,7 @@ class WaymoDataset(Dataset):
         else:
             if len(history_sweep_filenames) <= history_num_sweeps:
                 choices = np.arange(len(history_sweep_filenames))
-            elif self.split == 'training':
+            elif self.mode == 'training':
                 choices = np.random.choice(
                     len(history_sweep_filenames), history_num_sweeps, replace=False)
             else:
@@ -217,7 +202,7 @@ class WaymoDataset(Dataset):
         return points, cur_point_indices
 
     def load_label(self, filename):
-        label_file = self.get_label_path(filename)
+        label_file = os.path.join(self.data_root, 'label', filename + '.npy')
         semantic_labels = np.load(label_file)[:, 1]  # (N, 1)
 
         # convert unlabeled to ignored label (0 to 255)
@@ -274,7 +259,7 @@ class WaymoDataset(Dataset):
                 point_voxel_ids: optional, (N)
                 voxel_labels: optional, (num_voxels)
         """
-        if self.split == 'training' and self.cfg.DATASET.AUG_DATA:
+        if self.mode == 'training' and self.cfg.DATASET.AUG_DATA:
             data_dict = self.transforms(data_dict)
 
         if self.cfg.DATASET.USE_MULTI_SWEEPS:
@@ -311,31 +296,33 @@ class WaymoDataset(Dataset):
 
         if self.cfg.DATASET.USE_IMAGE_FEATURE:
             if self.cfg.DATASET.USE_MULTI_SWEEPS:
-                input_dict['point_image_features'] = self.load_image_features(input_dict['cur_point_indices'].shape[0], filename)
+                input_dict['point_image_features'] = self.load_image_features(input_dict['cur_point_indices'].shape[0],
+                                                                              filename)
             else:
                 input_dict['point_image_features'] = self.load_image_features(input_dict['points'].shape[0], filename)
 
-        if not self.test_mode:
+        if self.mode != 'testing':
             input_dict['point_labels'] = self.load_label(filename)
 
-        if self.split == 'training' and self.cfg.DATASET.AUG_DATA and not self.cfg.DATASET.USE_MULTI_SWEEPS:
+        if self.mode == 'training' and self.cfg.DATASET.AUG_DATA and not self.cfg.DATASET.USE_MULTI_SWEEPS:
             filename2 = self.filenames[np.random.randint(len(self.filenames))]
             points2 = self.load_points(filename2)[:, :self.dim_point]
             labels2 = self.load_label(filename2)
             if self.cfg.DATASET.USE_IMAGE_FEATURE:
                 point_images_features2 = self.load_image_features(points2.shape[0], filename2)
                 input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
+                    self.instance_aug(input_dict['points'], input_dict['point_image_features'],
+                                      input_dict['point_labels'])
+                input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
                     self.polar_mix(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'],
                                    points2, point_images_features2, labels2)
-                input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'] = \
-                    self.instance_aug(input_dict['points'], input_dict['point_image_features'], input_dict['point_labels'])
             else:
                 input_dict['points'], input_dict['point_labels'] = \
-                    self.polar_mix(input_dict['points'], None, input_dict['point_labels'], points2, None, labels2)
-                input_dict['points'], input_dict['point_labels'] = \
                     self.instance_aug(input_dict['points'], None, input_dict['point_labels'])
+                input_dict['points'], input_dict['point_labels'] = \
+                    self.polar_mix(input_dict['points'], None, input_dict['point_labels'], points2, None, labels2)
 
-        if self.test_mode:
+        if self.mode == 'testing':
             if self.cfg.DATASET.USE_MULTI_SWEEPS:
                 input_dict['points_ri'] = points[input_dict['cur_point_indices']][:, -3:].astype(np.int32)
             else:
@@ -343,7 +330,7 @@ class WaymoDataset(Dataset):
 
         data_dict = self.prepare_data(data_dict=input_dict)
 
-        if not self.test_mode:
+        if self.mode != 'testing':
             self.prepare_voxel_labels(data_dict)
 
         return data_dict
@@ -391,19 +378,22 @@ class WaymoDataset(Dataset):
     def __len__(self):
         return len(self.filenames)
 
+
 if __name__ == '__main__':
     from seg3d.utils.config import cfg
     from seg3d.utils.visualize import draw_points, draw_voxels
 
-    cfg.DATASET.PALETTE = [[0, 0, 142], [0, 0, 70], [0, 60, 100], [61, 133, 198], [180, 0, 0], [255, 0, 0], [220, 20, 60], [246, 178, 107],
-                           [250, 170, 30], [153, 153, 153], [230, 145, 56], [119, 11, 32], [0, 0, 230], [70, 70, 70], [107, 142, 35],
-                           [190, 153, 153], [196, 196, 196], [128, 64, 128], [234, 209, 220], [217, 210, 233], [81, 0, 81], [244, 35, 232]]
+    cfg.DATASET.PALETTE = [[0, 0, 142], [0, 0, 70], [0, 60, 100], [61, 133, 198], [180, 0, 0], [255, 0, 0],
+                           [220, 20, 60], [246, 178, 107], [250, 170, 30], [153, 153, 153], [230, 145, 56],
+                           [119, 11, 32], [0, 0, 230], [70, 70, 70], [107, 142, 35], [190, 153, 153], [196, 196, 196],
+                           [128, 64, 128], [234, 209, 220], [217, 210, 233], [81, 0, 81], [244, 35, 232]]
 
-    data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2'
-    dataset = WaymoDataset(cfg, data_dir, 'validation')
+    data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2/validation'
+    dataset = WaymoDataset(cfg, data_dir, mode='validation')
     for step, sample in enumerate(dataset):
         print(step, sample['points'].shape, sample['point_labels'].shape)
 
         if cfg.DATASET.VISUALIZE:
             draw_points(dataset.palette, sample, os.path.join(data_dir, 'visualization/points'))
-            draw_voxels(dataset.palette, dataset.voxel_size, dataset.point_cloud_range, sample, os.path.join(data_dir, 'visualization/voxels'))
+            draw_voxels(dataset.palette, dataset.voxel_size, dataset.point_cloud_range, sample,
+                        os.path.join(data_dir, 'visualization/voxels'))

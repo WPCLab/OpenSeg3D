@@ -7,9 +7,9 @@ class InstanceAugmentation(object):
     def __init__(self, instance_path, instance_label_ids=[3, 4, 10], ground_label_ids=[17, 18, 19, 20, 21],
                  add_count=5, random_rotate=True, local_transformation=True, random_flip=True):
         self.instance_label_ids = instance_label_ids
+        self.ground_label_ids = ground_label_ids
 
         self.ground_label_map = {}
-        self.ground_label_ids = ground_label_ids
         for i, ground_label_id in enumerate(self.ground_label_ids):
             self.ground_label_map[ground_label_id] = i
 
@@ -35,6 +35,8 @@ class InstanceAugmentation(object):
                 for i in range(labels.shape[0]):
                     point = points[i, :3]
                     label = labels[i]
+                    if label == 255:
+                        continue
                     if label in self.ground_label_map:
                         ground_points.append(point)
                     else:
@@ -42,7 +44,9 @@ class InstanceAugmentation(object):
                 object_points = np.stack(object_points)
                 ground_points = np.stack(ground_points)
 
-                instance_points = self.instances[label_id][idx].copy()
+                instance = self.instances[label_id][idx]
+                instance_points = instance['cluster_points'].copy()
+                instance_height = instance['cluster_height']
                 instance_xyz = instance_points[:, :3]
                 instance_feat = instance_points[:, 3:]
                 instance_feat[:, 0] = 0
@@ -67,21 +71,24 @@ class InstanceAugmentation(object):
                 # need to check occlusion
                 fail_flag = True
                 center = np.mean(instance_xyz, axis=0)
-                radius = self.get_instance_radius(instance_xyz, center)
+                radius = self.radius_instance(instance_xyz, center)
                 if self.random_rotate:
                     # random rotate
                     random_angle = np.random.random(20) * np.pi * 2
                     for r in random_angle:
                         center_r = self.rotate_origin(center[np.newaxis, ...], r)
-                        # check if occluded
-                        if self.check(object_points, ground_points, center_r[0], min_dist=radius):
+                        # check if occluded and on ground
+                        if self.check(object_points, ground_points, instance_xyz, center_r[0], instance_height,
+                                      min_dist=radius):
                             fail_flag = False
                             break
                     # rotate to empty space
                     if fail_flag: continue
                     instance_xyz = self.rotate_origin(instance_xyz, r)
                 else:
-                    fail_flag = not self.check(object_points, ground_points, center, min_dist=radius)
+                    # check if occluded and on ground
+                    fail_flag = not self.check(object_points, ground_points, instance_xyz, center_r[0], instance_height,
+                                               min_dist=radius)
 
                 if fail_flag: continue
 
@@ -121,8 +128,8 @@ class InstanceAugmentation(object):
 
         return points
 
-    def check(self, points_xyz_object, points_xyz_ground, center, min_dist=2):
-        """check if close to a point"""
+    def check(self, points_xyz_object, points_xyz_ground, points_xyz, center, height, min_dist=2):
+        """check if close to a point and on ground"""
         # check no occlusion
         if points_xyz_object.ndim == 1:
             dist = np.linalg.norm(points_xyz_object[np.newaxis, :] - center, axis=1)
@@ -137,7 +144,15 @@ class InstanceAugmentation(object):
             dist = np.linalg.norm(points_xyz_ground - center, axis=1)
         on_ground = np.any(dist < 1.2 * min_dist)
 
-        return no_occlusion and on_ground
+        # if on ground, then adjust z with height
+        if no_occlusion and on_ground:
+            min_idx = np.argmin(dist)
+            ground_z = points_xyz_ground[min_idx][2]
+            est_z = ground_z + height
+            points_xyz[:, 2] += (est_z - center[2])
+            return True
+        else:
+            return False
 
     def rotate_origin(self, points_xyz, radians):
         """rotate a point around the origin"""
@@ -161,7 +176,7 @@ class InstanceAugmentation(object):
 
         return xyz + center
 
-    def get_instance_radius(self, points_xyz, center):
+    def radius_instance(self, points_xyz, center):
         """compute radius of instance points"""
         if points_xyz.ndim == 1:
             dist = np.linalg.norm(points_xyz[np.newaxis, :] - center, axis=1)

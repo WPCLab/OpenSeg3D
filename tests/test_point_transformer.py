@@ -13,7 +13,8 @@ if __name__ == '__main__':
 
     # load data
     cfg.DATASET.POINT_CLOUD_RANGE = [-72, -72, -2, 72, 72, 4.4]
-    train_dataset = WaymoDataset(cfg, '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2', 'validation')
+    data_dir = '/nfs/dataset-dtai-common/waymo_open_dataset_v_1_3_2/validation'
+    train_dataset = WaymoDataset(cfg, data_dir, mode='validation')
     logger.info('Loaded %d train samples' % len(train_dataset))
 
     train_loader = torch.utils.data.DataLoader(
