@@ -71,7 +71,6 @@ def semseg_for_one_frame(args, model, data_dict, augmentor):
     return seg_frame_result
 
 
-
 def inference(args, augmentor, data_loader, model, logger):
     logger.info('Inference start!')
     model.eval()
@@ -79,11 +78,10 @@ def inference(args, augmentor, data_loader, model, logger):
     segmentation_frame_list = segmentation_metrics_pb2.SegmentationFrameList()
     for step, data_dict in enumerate(tqdm(data_loader), 1):
         seg_frame_result = semseg_for_one_frame(args, model, data_dict, augmentor)
-        if args.save_score:
-            frame_score_result['frame_id'] = seg_frame_result['frame_id']
-            frame_score_result['point_prob'] = seg_frame_result['point_prob']
-            frame_score_result['points_ri'] = seg_frame_result['points_ri']
         segmentation_frame_list.frames.append(seg_frame_result['seg_frame'])
+        if args.save_score:
+            frame_score_result[seg_frame_result['frame_id']] = (seg_frame_result['point_prob'],
+                                                                seg_frame_result['points_ri'])
 
     submission_file = os.path.join(args.save_dir, 'wod_test_set_pred_semantic_seg.bin')
     write_submission_file(segmentation_frame_list, submission_file)
