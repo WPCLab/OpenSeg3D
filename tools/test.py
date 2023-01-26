@@ -71,6 +71,7 @@ def semseg_for_one_frame(args, model, data_dict, augmentor):
     return seg_frame_result
 
 
+
 def inference(args, augmentor, data_loader, model, logger):
     logger.info('Inference start!')
     model.eval()
