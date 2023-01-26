@@ -1,6 +1,7 @@
 import os
 import time
 import argparse
+import pickle
 from tqdm import tqdm
 
 import torch
@@ -27,6 +28,7 @@ def parse_args():
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--num_workers', default=2, type=int)
     parser.add_argument('--tta', action='store_true', default=False, help='whether to use tta')
+    parser.add_argument('--save_score', action='store_true', default=False, help='whether to save score')
     parser.add_argument('--cudnn_benchmark', action='store_true', default=False, help='whether to use cudnn')
     parser.add_argument('--log_iter_interval', default=5, type=int)
     args = parser.parse_args()
@@ -38,39 +40,58 @@ def semseg_for_one_frame(args, model, data_dict, augmentor):
     points_ri = data_dict['points_ri']
     frame_id = data_dict['filename'][0]
 
+    seg_frame_result = {
+        'frame_id': frame_id,
+        'points_ri': points_ri
+    }
+
     if args.tta:
-        point_out_list = []
+        point_prob_list = []
         aug_data_list = augmentor(data_dict)
         for i in range(len(aug_data_list)):
             aug_data = aug_data_list[i]
             load_data_to_gpu(aug_data)
             with torch.no_grad():
                 result = model(aug_data)
-            point_out = F.softmax(result['point_out'], dim=1)
-            point_out_list.append(point_out)
-        point_outs = torch.stack(point_out_list, dim=0)
-        point_out = torch.mean(point_outs, dim=0)
+            point_prob = F.softmax(result['point_out'], dim=1)
+            point_prob_list.append(point_prob)
+        point_prob = torch.stack(point_prob_list, dim=0)
+        point_prob = torch.mean(point_prob, dim=0)
     else:
         load_data_to_gpu(data_dict)
         with torch.no_grad():
             result = model(data_dict)
-        point_out = result['point_out']
-    pred_labels = torch.argmax(point_out, dim=1).cpu()
+        point_prob = F.softmax(result['point_out'], dim=1)
 
-    seg_frame = construct_seg_frame(pred_labels, points_ri, frame_id)
-    return seg_frame
+    point_labels = torch.argmax(point_prob, dim=1).cpu()
+    seg_frame = construct_seg_frame(point_labels, points_ri, frame_id)
+
+    seg_frame_result['point_prob'] = point_prob.cpu()
+    seg_frame_result['seg_frame'] = seg_frame
+    return seg_frame_result
 
 
 def inference(args, augmentor, data_loader, model, logger):
     logger.info('Inference start!')
     model.eval()
+    frame_score_result = dict()
     segmentation_frame_list = segmentation_metrics_pb2.SegmentationFrameList()
     for step, data_dict in enumerate(tqdm(data_loader), 1):
-        segmentation_frame = semseg_for_one_frame(args, model, data_dict, augmentor)
-        segmentation_frame_list.frames.append(segmentation_frame)
+        seg_frame_result = semseg_for_one_frame(args, model, data_dict, augmentor)
+        if args.save_score:
+            frame_score_result['frame_id'] = seg_frame_result['frame_id']
+            frame_score_result['point_prob'] = seg_frame_result['point_prob']
+            frame_score_result['points_ri'] = seg_frame_result['points_ri']
+        segmentation_frame_list.frames.append(seg_frame_result['seg_frame'])
 
     submission_file = os.path.join(args.save_dir, 'wod_test_set_pred_semantic_seg.bin')
     write_submission_file(segmentation_frame_list, submission_file)
+
+    if args.save_score:
+        score_file = os.path.join(args.save_dir, 'wod_test_set_pred_score_seg.pkl')
+        fp = open(score_file, 'wb')
+        pickle.dump(frame_score_result, fp)
+        fp.close()
 
     logger.info('Inference finished!')
 
