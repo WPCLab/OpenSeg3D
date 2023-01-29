@@ -24,9 +24,8 @@ def parse_args():
     parser.add_argument('--save_dir', type=str, help='the saved directory')
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--num_workers', default=2, type=int)
-    parser.add_argument('--tta', action='store_true', default=False, help='whether to use tta')
     parser.add_argument('--cudnn_benchmark', action='store_true', default=False, help='whether to use cudnn')
-    parser.add_argument('--log_iter_interval', default=5, type=int)
+    parser.add_argument('--tta', action='store_true', default=False, help='whether to use tta')
     args = parser.parse_args()
 
     return args

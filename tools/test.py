@@ -25,12 +25,11 @@ def parse_args():
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')
     parser.add_argument('--data_dir', type=str, help='the data directory')
     parser.add_argument('--save_dir', type=str, help='the saved directory')
+    parser.add_argument('--score_file', type=str, default=None, help='path for saving point seg probabilities')
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--num_workers', default=2, type=int)
-    parser.add_argument('--tta', action='store_true', default=False, help='whether to use tta')
-    parser.add_argument('--save_score', action='store_true', default=False, help='whether to save score')
     parser.add_argument('--cudnn_benchmark', action='store_true', default=False, help='whether to use cudnn')
-    parser.add_argument('--log_iter_interval', default=5, type=int)
+    parser.add_argument('--tta', action='store_true', default=False, help='whether to use tta')
     args = parser.parse_args()
 
     return args
@@ -74,22 +73,21 @@ def semseg_for_one_frame(args, model, data_dict, augmentor):
 def inference(args, augmentor, data_loader, model, logger):
     logger.info('Inference start!')
     model.eval()
-    frame_score_result = dict()
+    segmentation_score_result = dict()
     segmentation_frame_list = segmentation_metrics_pb2.SegmentationFrameList()
     for step, data_dict in enumerate(tqdm(data_loader), 1):
         seg_frame_result = semseg_for_one_frame(args, model, data_dict, augmentor)
         segmentation_frame_list.frames.append(seg_frame_result['seg_frame'])
-        if args.save_score:
-            frame_score_result[seg_frame_result['frame_id']] = (seg_frame_result['point_prob'],
-                                                                seg_frame_result['points_ri'])
+        if args.score_file is not None:
+            segmentation_score_result[seg_frame_result['frame_id']] = (seg_frame_result['point_prob'],
+                                                                       seg_frame_result['points_ri'])
 
     submission_file = os.path.join(args.save_dir, 'wod_test_set_pred_semantic_seg.bin')
     write_submission_file(segmentation_frame_list, submission_file)
 
-    if args.save_score:
-        score_file = os.path.join(args.save_dir, 'wod_test_set_pred_score_seg.pkl')
-        fp = open(score_file, 'wb')
-        pickle.dump(frame_score_result, fp)
+    if args.score_file is not None:
+        fp = open(args.score_file, 'wb')
+        pickle.dump(segmentation_score_result, fp)
         fp.close()
 
     logger.info('Inference finished!')
